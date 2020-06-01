@@ -7,9 +7,14 @@ class Agent:
         self.gamma = gamma
         self.policy = [[[0.25,0.25,0.25,0.25] for i in range(env.state_size[0])] for j in range(env.state_size[1])]
         self.value = np.zeros(env.state_size)
+        self.action_value = np.random.rand(env.state_size[0],env.state_size[1],4)*0.0001
+        #self.action_value = np.zeros((env.state_size[0],env.state_size[1],4))
+        self.TDpolicy = np.zeros(env.state_size)
         for i in env.wall:
             self.value[i] = None
             self.policy[i[0]][i[1]] = None
+            self.action_value[i] = None
+            self.TDpolicy[i] = None
         
         
         for i in range(1,9):
@@ -17,10 +22,17 @@ class Agent:
             self.policy[-1][i] = [1/3,1/3,0,1/3]
             self.policy[i][0] = [1/3,1/3,1/3,0]
             self.policy[i][-1] = [1/3,0,1/3,1/3]
+            
         self.policy[0][0] = [0,0.5,0.5,0]
         self.policy[0][-1] = [0,0,0.5,0.5]
         self.policy[-1][0] = [0.5,0.5,0,0]
         self.policy[-1][-1] = [0.5,0,0,0.5]
+
+        for i in range(10):
+            self.action_value[0,i][0] = -np.inf
+            self.action_value[-1,i][2] = -np.inf
+            self.action_value[i,0][3] = -np.inf
+            self.action_value[i,-1][1] = -np.inf
                 
         
     def get_policy(self,s):
@@ -109,4 +121,78 @@ class DPAgent(Agent):
 
 
 class TDAgent(Agent):
-    pass
+    def Q_learning(self,alpha, epsi=0.2):
+        
+        iterations = []
+        for _ in range(1000):
+            S = (0,0)
+            iteration = 0
+            while True:
+                # choose A by epsilon-greedy
+                coin = np.random.binomial(1,1-epsi)
+                policy = self.get_policy(S)
+                if coin:
+                    A = np.argmax(self.action_value[S])
+                else:
+                    A = np.random.choice([0,1,2,3], p = policy)
+                s_n = self.env.get_next_state(S,A)
+                r = self.env.get_reward(S)
+                self.action_value[S][A] += alpha*(r+self.gamma*max(self.action_value[s_n])-self.action_value[S][A])
+                if self.env.is_terminal(S):
+                    break
+                S = s_n
+                iteration += 1
+            iterations.append(iteration)
+        # Get policy
+        self.TDpolicy = np.argmax(self.action_value, axis=2)
+        self.value = np.max(self.action_value, axis = 2)
+        for i in self.env.wall:
+            self.TDpolicy[i] = -1
+            self.value[i] = None
+        return iterations
+
+    def sarsa(self,alpha, epsi=0.2):
+        
+        iterations = []
+        for _ in range(1000):
+            S = (0,0)
+            iteration = 0
+            while True:
+                # choose A by epsilon-greedy
+                coin = np.random.binomial(1,1-epsi)
+                policy = self.get_policy(S)
+                if coin:
+                    A = np.argmax(self.action_value[S])
+                else:
+                    A = np.random.choice([0,1,2,3], p = policy)
+                s_n = self.env.get_next_state(S,A)
+
+                coin = np.random.binomial(1,1-epsi)
+                policy = self.get_policy(s_n)
+                if coin:
+                    a_n = np.argmax(self.action_value[s_n])
+                else:
+                    a_n = np.random.choice([0,1,2,3], p = policy)
+
+                r = self.env.get_reward(S)
+                self.action_value[S][A] += alpha*(r+self.gamma*self.action_value[s_n][a_n]-self.action_value[S][A])
+                if self.env.is_terminal(S) or iteration>= 1000:
+                    break
+                S = s_n
+                A = a_n
+                iteration += 1
+            iterations.append(iteration)
+        # Get policy
+        self.TDpolicy = np.argmax(self.action_value, axis=2)
+        self.value = np.max(self.action_value, axis = 2)
+        for i in self.env.wall:
+            self.TDpolicy[i] = -1
+            self.value[i] = None
+        return iterations
+
+
+
+
+
+
+

@@ -1,5 +1,5 @@
 import numpy as np
-import random 
+import random
 
 STATE_SPACE_SIZE = (10,10)
 START_STATE = (0,0)
@@ -32,7 +32,12 @@ class GridWorld:
         return s
 
     def get_reward(self,s):
-        return self.reward_matrix[s] 
+        return self.reward_matrix[s]
+    
+    def is_terminal(self,s):
+        if self.reward_matrix[s] > 0:
+            return True
+        return False
         
 
         
